@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Heart, ShoppingBag, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Menu, X, Heart, ShoppingBag, Search, User } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { label: "Products", href: "/products" },
@@ -13,6 +15,14 @@ const navLinks = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const { user, loading, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    setOpen(false);
+    router.push("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-brass/30 bg-cream/90 backdrop-blur-sm">
@@ -47,15 +57,35 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-5 md:flex">
-          <Link href="/login" className="text-sm font-medium text-ink/80 hover:text-rust">
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-cream transition-colors hover:bg-rust"
-          >
-            Sign up
-          </Link>
+          {!loading && user ? (
+            <>
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 text-sm font-medium text-ink/80 hover:text-rust"
+              >
+                <User size={18} />
+                {user.name.split(" ")[0]}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-sm font-medium text-ink/80 hover:text-rust"
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium text-ink/80 hover:text-rust">
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-cream transition-colors hover:bg-rust"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
           <Link href="/wishlist" aria-label="Wishlist" className="text-ink/80 hover:text-rust">
             <Heart size={20} />
           </Link>
@@ -95,19 +125,48 @@ export default function Navbar() {
                 </Link>
               </li>
             ))}
-            <li>
-              <Link href="/login" className="text-sm font-medium text-ink/80 hover:text-rust">
-                Log in
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/signup"
-                className="inline-block rounded-full bg-ink px-4 py-2 text-sm font-medium text-cream"
-              >
-                Sign up
-              </Link>
-            </li>
+            {!loading && user ? (
+              <>
+                <li>
+                  <Link
+                    href="/profile"
+                    className="text-sm font-medium text-ink/80 hover:text-rust"
+                    onClick={() => setOpen(false)}
+                  >
+                    My Profile
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    onClick={handleLogout}
+                    className="text-left text-sm font-medium text-ink/80 hover:text-rust"
+                  >
+                    Log out
+                  </button>
+                </li>
+              </>
+            ) : (
+              <>
+                <li>
+                  <Link
+                    href="/login"
+                    className="text-sm font-medium text-ink/80 hover:text-rust"
+                    onClick={() => setOpen(false)}
+                  >
+                    Log in
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/signup"
+                    className="inline-block rounded-full bg-ink px-4 py-2 text-sm font-medium text-cream"
+                    onClick={() => setOpen(false)}
+                  >
+                    Sign up
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </div>
       )}
