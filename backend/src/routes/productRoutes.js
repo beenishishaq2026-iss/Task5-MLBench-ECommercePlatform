@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createProduct,
   getProducts,
+  getProductFilters,
   getProductBySlug,
   updateProduct,
   deleteProductImage,
@@ -12,6 +13,7 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
 router.get('/', getProducts);
+router.get('/meta/filters', getProductFilters);
 router.get('/:slug', getProductBySlug);
 
 router.post('/', protect, authorize('admin'), upload.array('images', 5), createProduct);

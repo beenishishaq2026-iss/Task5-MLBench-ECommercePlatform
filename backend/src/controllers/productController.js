@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const slugify = require('../utils/slugify');
 const { uploadImage, deleteImage } = require('../utils/cloudinary');
+const APIFeatures = require('../utils/apiFeatures');
 
 const createProduct = async (req, res) => {
   try {
@@ -62,11 +63,66 @@ const createProduct = async (req, res) => {
 
 const getProducts = async (req, res) => {
   try {
-    const products = await Product.find({ isActive: true })
-      .populate('category', 'name slug')
-      .sort({ createdAt: -1 });
+    const baseQuery = Product.find({ isActive: true }).populate('category', 'name slug');
 
-    res.status(200).json({ count: products.length, products });
+    const features = new APIFeatures(baseQuery, req.query)
+      .search()
+      .filter()
+      .sort()
+      .paginate();
+
+    const products = await features.query;
+
+    const totalFilters = { isActive: true };
+    if (req.query.category) totalFilters.category = req.query.category;
+    if (req.query.brand) totalFilters.brand = req.query.brand;
+    if (req.query.minPrice || req.query.maxPrice) {
+      totalFilters.price = {};
+      if (req.query.minPrice) totalFilters.price.$gte = Number(req.query.minPrice);
+      if (req.query.maxPrice) totalFilters.price.$lte = Number(req.query.maxPrice);
+    }
+    if (req.query.inStock === 'true') totalFilters.stock = { $gt: 0 };
+    if (req.query.search) totalFilters.$text = { $search: req.query.search };
+
+    const total = await Product.countDocuments(totalFilters);
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 12;
+
+    res.status(200).json({
+      count: products.length,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit) || 1,
+      products,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const getProductFilters = async (req, res) => {
+  try {
+    const brands = await Product.distinct('brand', {
+      isActive: true,
+      brand: { $ne: '' },
+    });
+
+    const priceStats = await Product.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: null,
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      brands,
+      minPrice: priceStats[0]?.minPrice || 0,
+      maxPrice: priceStats[0]?.maxPrice || 0,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -193,6 +249,7 @@ const deleteProduct = async (req, res) => {
 module.exports = {
   createProduct,
   getProducts,
+  getProductFilters,
   getProductBySlug,
   updateProduct,
   deleteProductImage,
